@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 SUPER DIGGER's Discord Bot – Afg Bypass
+With keep-alive web server for Render
 """
 
 import os
@@ -8,6 +9,8 @@ import time
 import re
 import asyncio
 import requests
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from concurrent.futures import ThreadPoolExecutor
 
 import discord
@@ -25,6 +28,34 @@ if not TOKEN:
     raise SystemExit("ERROR: DISCORD_TOKEN environment variable is not set.")
 if not RTAO_API_KEY:
     raise SystemExit("ERROR: RTAO_API_KEY environment variable is not set.")
+
+# ====================================================================
+# KEEP-ALIVE WEB SERVER (for Render free tier)
+# ====================================================================
+def start_keepalive_server():
+    """Render requires an open HTTP port. This opens one so Render doesn't kill the bot."""
+    port = int(os.environ.get("PORT", 10000))
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"AFG Bypass Bot is alive")
+
+        def do_HEAD(self):
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args, **kwargs):
+            pass  # silence request logs so they don't spam
+
+    try:
+        server = HTTPServer(("0.0.0.0", port), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        print(f"[+] Keep-alive server listening on port {port}")
+    except Exception as e:
+        print(f"[!] Keep-alive server failed: {e}")
 
 # ====================================================================
 # BYPASS ENGINE – RTAO API
@@ -329,4 +360,9 @@ if __name__ == "__main__":
     ║   API: Rtao.lol                     ║
     ╚═══════════════════════════════════════╝
     """)
+
+    # Start the keep-alive server FIRST so Render sees a port immediately
+    start_keepalive_server()
+
+    # Then start the bot
     bot.run(TOKEN)

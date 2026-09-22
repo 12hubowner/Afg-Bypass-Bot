@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Afg Bypass – Web Interface
-Rtao API hidden – shows "Afg Bypass"
+Multi-API bypass engine: Rtao → Bacon
 """
 
 import os
@@ -13,45 +13,97 @@ import time
 app = Flask(__name__)
 
 # ====================================================================
-# RTAO API CONFIG (loaded from environment variables)
+# API CONFIG (all loaded from environment variables)
 # ====================================================================
-RTAO_API_KEY = os.environ.get("RTAO_API_KEY")
-RTAO_API_URL = "https://api.rtao.lol/bypass"
+RTAO_API_KEY  = os.environ.get("RTAO_API_KEY")
+BACON_API_KEY = os.environ.get("BACON_API_KEY")
 
-if not RTAO_API_KEY:
-    raise SystemExit("ERROR: RTAO_API_KEY environment variable is not set.")
+RTAO_API_URL  = "https://api.rtao.lol/bypass"
+BACON_API_URL = "https://baconbypass.online/bypass"
+
+# Which API to try first: "rtao" or "bacon"
+PRIMARY_API = os.environ.get("PRIMARY_API", "rtao").lower()
+
+if not RTAO_API_KEY and not BACON_API_KEY:
+    raise SystemExit("ERROR: at least one of RTAO_API_KEY or BACON_API_KEY must be set.")
+
+print(f"[+] Rtao key:  {'✅ set' if RTAO_API_KEY else '❌ missing'}")
+print(f"[+] Bacon key: {'✅ set' if BACON_API_KEY else '❌ missing'}")
+print(f"[+] Primary:   {PRIMARY_API}")
 
 # ====================================================================
-# BYPASS ENGINE – RTAO ONLY (HIDDEN)
+# BYPASS ENGINES
 # ====================================================================
 def bypass_rtao(url):
-    """Call the Rtao bypass API."""
+    """Rtao API – GET with x-api-key header."""
+    if not RTAO_API_KEY:
+        return None
     try:
         headers = {
             "x-api-key": RTAO_API_KEY,
             "Content-Type": "application/json",
         }
         params = {"url": url}
-        response = requests.get(
-            RTAO_API_URL, headers=headers, params=params, timeout=60
-        )
-
-        if response.status_code == 200:
-            data = response.json()
+        r = requests.get(RTAO_API_URL, headers=headers, params=params, timeout=60)
+        if r.status_code == 200:
+            data = r.json()
             if data.get("status") == "success" or data.get("success") is True:
                 return data.get("result") or data.get("bypassed") or data.get("url")
             if "result" in data:
                 return data["result"]
+        print(f"[Rtao] HTTP {r.status_code}")
         return None
     except Exception as e:
-        print(f"[Rtao API Error] {e}")
+        print(f"[Rtao Error] {e}")
+        return None
+
+
+def bypass_bacon(url):
+    """Bacon API – POST with apikey in JSON body."""
+    if not BACON_API_KEY:
+        return None
+    try:
+        headers = {"Content-Type": "application/json"}
+        payload = json.dumps({"url": url, "apikey": BACON_API_KEY})
+        r = requests.post(BACON_API_URL, headers=headers, data=payload, timeout=60)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("status") == "success":
+                return data.get("result")
+            elif data.get("success") is True:
+                return data.get("result")
+        print(f"[Bacon] HTTP {r.status_code}")
+        return None
+    except Exception as e:
+        print(f"[Bacon Error] {e}")
         return None
 
 
 def getKey(url):
-    result = bypass_rtao(url)
-    if result:
-        return str(result)
+    """
+    Try the primary API first, then fall back to the other one.
+    Returns the first successful result, or a fail message.
+    """
+    engines = {
+        "rtao":  ("Rtao",  bypass_rtao),
+        "bacon": ("Bacon", bypass_bacon),
+    }
+
+    # Order to try
+    if PRIMARY_API == "bacon":
+        order = ["bacon", "rtao"]
+    else:
+        order = ["rtao", "bacon"]
+
+    for name in order:
+        label, fn = engines[name]
+        print(f"[→] Trying {label}...")
+        result = fn(url)
+        if result:
+            print(f"[✅] {label} succeeded")
+            return str(result)
+        print(f"[✗] {label} failed, trying next...")
+
     return "bypass fail - Afg Bypass failed"
 
 # ====================================================================
@@ -77,17 +129,13 @@ HTML = """
             overflow-x: hidden;
             position: relative;
         }
-        /* AFGHAN FLAG BACKGROUND */
         body::before {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             z-index: 0;
-            background: 
-                linear-gradient(0deg, 
+            background:
+                linear-gradient(0deg,
                     rgba(0, 0, 0, 0.7) 0%,
                     rgba(0, 0, 0, 0.5) 20%,
                     rgba(0, 0, 0, 0.3) 40%,
@@ -105,16 +153,10 @@ HTML = """
         body::after {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             z-index: 0;
             background: radial-gradient(ellipse at center, rgba(10, 10, 15, 0.3) 0%, rgba(10, 10, 15, 0.7) 100%);
             pointer-events: none;
-        }
-        .glow-neon {
-            text-shadow: 0 0 10px #a855f7, 0 0 20px #a855f7, 0 0 40px #7c3aed, 0 0 80px #7c3aed;
         }
         .btn-neon {
             background: linear-gradient(135deg, #7c3aed, #a855f7);
@@ -130,9 +172,7 @@ HTML = """
             50% { transform: translateY(-12px); }
             100% { transform: translateY(0px); }
         }
-        .float-element {
-            animation: float 3.5s ease-in-out infinite;
-        }
+        .float-element { animation: float 3.5s ease-in-out infinite; }
         .float-delay-1 { animation-delay: 0s; }
         .float-delay-2 { animation-delay: 0.7s; }
         .float-delay-3 { animation-delay: 1.4s; }
@@ -152,90 +192,47 @@ HTML = """
         .container::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
             background: radial-gradient(ellipse at 30% 50%, rgba(168, 85, 247, 0.05) 0%, transparent 60%);
             pointer-events: none;
             animation: float 6s ease-in-out infinite;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 24px;
-            position: relative;
-            z-index: 1;
-        }
-        .title {
-            font-size: 38px;
-            font-weight: 800;
-            color: #ffffff;
-            letter-spacing: -0.5px;
-        }
-        .title span {
-            color: #a855f7;
-            text-shadow: 0 0 20px rgba(168, 85, 247, 0.6), 0 0 40px rgba(168, 85, 247, 0.3);
-        }
-        .subtitle {
-            color: #d0d0e0;
-            font-size: 15px;
-            margin-top: 6px;
-            text-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
-        }
+        .header { text-align: center; margin-bottom: 24px; position: relative; z-index: 1; }
+        .title { font-size: 38px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+        .title span { color: #a855f7; text-shadow: 0 0 20px rgba(168, 85, 247, 0.6), 0 0 40px rgba(168, 85, 247, 0.3); }
+        .subtitle { color: #d0d0e0; font-size: 15px; margin-top: 6px; text-shadow: 0 0 10px rgba(168, 85, 247, 0.2); }
 
-        /* ===== VIDEO GUIDE (moved down) ===== */
         .video-guide {
-            margin: 24px 0 0 0;
-            padding: 14px;
+            margin: 24px 0 0 0; padding: 14px;
             background: rgba(13, 13, 20, 0.6);
             border-radius: 14px;
             border: 1px solid rgba(168, 85, 247, 0.15);
-            position: relative;
-            z-index: 1;
-            text-align: center;
+            position: relative; z-index: 1; text-align: center;
         }
         .video-guide h2 {
-            color: #a855f7;
-            font-size: 16px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            letter-spacing: 0.3px;
+            color: #a855f7; font-size: 16px; font-weight: 700;
+            margin-bottom: 10px; letter-spacing: 0.3px;
             text-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
         }
         .video-guide .video-wrapper {
-            position: relative;
-            padding-bottom: 56.25%; /* 16:9 */
-            height: 0;
-            overflow: hidden;
-            border-radius: 10px;
-            border: 1px solid #2a2a3a;
-            background: #000;
+            position: relative; padding-bottom: 56.25%;
+            height: 0; overflow: hidden; border-radius: 10px;
+            border: 1px solid #2a2a3a; background: #000;
         }
         .video-guide .video-wrapper iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: 0;
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; border: 0;
         }
 
         .input-group {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-            position: relative;
-            z-index: 1;
+            display: flex; gap: 12px; margin-bottom: 16px;
+            position: relative; z-index: 1;
         }
         .input-group input {
-            flex: 1;
-            padding: 16px 20px;
-            border-radius: 14px;
-            border: 1px solid #2a2a3a;
-            background: rgba(13, 13, 20, 0.8);
-            color: #e6edf3;
-            font-size: 16px;
-            outline: none;
+            flex: 1; padding: 16px 20px; border-radius: 14px;
+            border: 1px solid #2a2a3a; background: rgba(13, 13, 20, 0.8);
+            color: #e6edf3; font-size: 16px; outline: none;
             transition: border 0.2s, box-shadow 0.2s;
         }
         .input-group input:focus {
@@ -244,15 +241,10 @@ HTML = """
         }
         .input-group input::placeholder { color: #484f58; }
         .input-group button {
-            padding: 16px 32px;
-            border-radius: 14px;
-            border: none;
+            padding: 16px 32px; border-radius: 14px; border: none;
             background: linear-gradient(135deg, #7c3aed, #a855f7);
-            color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            color: #fff; font-size: 16px; font-weight: 700;
+            cursor: pointer; transition: all 0.3s ease;
             white-space: nowrap;
             box-shadow: 0 0 25px rgba(168, 85, 247, 0.3);
         }
@@ -262,24 +254,17 @@ HTML = """
         }
         .input-group button:active { transform: scale(0.97); }
         .supported {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px 16px;
-            justify-content: center;
-            margin-bottom: 24px;
+            display: flex; flex-wrap: wrap; gap: 10px 16px;
+            justify-content: center; margin-bottom: 24px;
             padding: 12px;
             background: rgba(13, 13, 20, 0.6);
             border-radius: 12px;
             border: 1px solid rgba(168, 85, 247, 0.15);
-            position: relative;
-            z-index: 1;
+            position: relative; z-index: 1;
         }
         .supported span {
-            color: #c0c0d0;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            color: #c0c0d0; font-size: 13px;
+            display: flex; align-items: center; gap: 4px;
         }
         .supported span::before { content: "✅"; font-size: 14px; }
         .supported span.neon-text {
@@ -288,81 +273,51 @@ HTML = """
         }
         #result { margin-top: 20px; min-height: 60px; position: relative; z-index: 1; }
         .result-box {
-            padding: 20px;
-            border-radius: 14px;
+            padding: 20px; border-radius: 14px;
             border: 1px solid #2a2a3a;
             background: rgba(13, 13, 20, 0.7);
             animation: fadeIn 0.4s ease;
         }
-        .result-box.success {
-            border-color: #a855f7;
-            box-shadow: 0 0 30px rgba(168, 85, 247, 0.15);
-        }
+        .result-box.success { border-color: #a855f7; box-shadow: 0 0 30px rgba(168, 85, 247, 0.15); }
         .result-box.fail { border-color: #f85149; }
-        .result-box.loading {
-            border-color: #d29922;
-            box-shadow: 0 0 20px rgba(210, 153, 34, 0.1);
-        }
+        .result-box.loading { border-color: #d29922; box-shadow: 0 0 20px rgba(210, 153, 34, 0.1); }
         .result-box .label {
-            font-size: 12px;
-            color: #8b949e;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            font-size: 12px; color: #8b949e; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 8px;
         }
         .result-box .value {
             font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            font-size: 14px;
-            color: #e6edf3;
-            word-break: break-all;
+            font-size: 14px; color: #e6edf3; word-break: break-all;
             background: rgba(10, 10, 15, 0.8);
-            padding: 12px;
-            border-radius: 8px;
+            padding: 12px; border-radius: 8px;
             border: 1px solid #1a1a2a;
-            max-height: 200px;
-            overflow-y: auto;
+            max-height: 200px; overflow-y: auto;
         }
-        .result-box .value.success-text {
-            color: #a855f7;
-            text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
-        }
+        .result-box .value.success-text { color: #a855f7; text-shadow: 0 0 10px rgba(168, 85, 247, 0.3); }
         .result-box .value.fail-text { color: #f85149; }
         .result-box .meta {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 12px;
-            font-size: 13px;
-            color: #8b949e;
+            display: flex; justify-content: space-between;
+            margin-top: 12px; font-size: 13px; color: #8b949e;
         }
         .result-box .meta a { color: #a855f7; text-decoration: none; }
         .result-box .meta a:hover { text-decoration: underline; }
         .copy-btn {
-            margin-top: 12px;
-            padding: 10px 20px;
-            border-radius: 10px;
-            border: 1px solid #a855f7;
-            background: transparent;
-            color: #a855f7;
-            font-size: 14px;
-            cursor: pointer;
+            margin-top: 12px; padding: 10px 20px; border-radius: 10px;
+            border: 1px solid #a855f7; background: transparent;
+            color: #a855f7; font-size: 14px; cursor: pointer;
             transition: all 0.3s ease;
         }
         .copy-btn:hover {
-            background: #a855f7;
-            color: #fff;
+            background: #a855f7; color: #fff;
             box-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
         }
         .footer {
-            text-align: center;
-            margin-top: 28px;
-            font-size: 13px;
-            color: #a0a0b0;
-            position: relative;
-            z-index: 1;
+            text-align: center; margin-top: 28px;
+            font-size: 13px; color: #a0a0b0;
+            position: relative; z-index: 1;
         }
         .footer a {
-            color: #a855f7;
-            text-decoration: none;
+            color: #a855f7; text-decoration: none;
             text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
         }
         .footer a:hover { text-decoration: underline; }
@@ -372,22 +327,15 @@ HTML = """
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #2a2a3a;
-            border-top-color: #a855f7;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            vertical-align: middle;
-            margin-right: 10px;
+            display: inline-block; width: 20px; height: 20px;
+            border: 3px solid #2a2a3a; border-top-color: #a855f7;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+            vertical-align: middle; margin-right: 10px;
         }
         .particle {
-            position: fixed;
-            border-radius: 50%;
+            position: fixed; border-radius: 50%;
             background: radial-gradient(circle, rgba(168, 85, 247, 0.15), transparent);
-            pointer-events: none;
-            z-index: 0;
+            pointer-events: none; z-index: 0;
         }
         .particle-1 { width: 300px; height: 300px; top: -100px; left: -100px; animation: float 5s ease-in-out infinite; }
         .particle-2 { width: 200px; height: 200px; bottom: -50px; right: -50px; animation: float 4s ease-in-out infinite reverse; }
@@ -432,7 +380,6 @@ HTML = """
 
     <div id="result"></div>
 
-    <!-- ===== VIDEO GUIDE (now at the bottom) ===== -->
     <div class="video-guide">
         <h2>🎬 How to Bypass a Link – Watch the Guide</h2>
         <div class="video-wrapper">
@@ -487,6 +434,7 @@ HTML = """
                         </div>
                         <div class="meta">
                             <span>⏱️ ${data.time || 'N/A'}</span>
+                            <span>via ${data.engine || '?'}</span>
                             <span><a href="${escapeHtml(url)}" target="_blank">🔗 Original Link</a></span>
                         </div>
                     </div>
@@ -557,8 +505,8 @@ if __name__ == '__main__':
     print(f"""
     ╔═══════════════════════════════════════╗
     ║   🇦🇫  AFG BYPASS WEB  🇦🇫           ║
+    ║   Multi-API: Rtao + Bacon            ║
     ║   Afghan Flag + Neon Purple          ║
-    ║   API: Rtao.lol                      ║
     ║   http://localhost:{port}              ║
     ╚═══════════════════════════════════════╝
     """)

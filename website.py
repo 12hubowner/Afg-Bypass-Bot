@@ -422,7 +422,7 @@ HTML = """
         <h2>🎬 How to Bypass a Link – Watch the Guide</h2>
         <div class="video-wrapper">
             <iframe
-                src="https://streamable.com/e/26o6m2"
+                src="https://streamable.com/j25xnl"
                 allowfullscreen
                 frameborder="0"
                 allow="autoplay; fullscreen"

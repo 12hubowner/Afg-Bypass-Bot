@@ -38,7 +38,6 @@ def bypass_rtao(url):
 
         if response.status_code == 200:
             data = response.json()
-            # Try multiple possible response shapes
             if data.get("status") == "success" or data.get("success") is True:
                 return data.get("result") or data.get("bypassed") or data.get("url")
             if "result" in data:
@@ -163,7 +162,7 @@ HTML = """
         }
         .header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
             position: relative;
             z-index: 1;
         }
@@ -183,6 +182,44 @@ HTML = """
             margin-top: 6px;
             text-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
         }
+
+        /* ===== VIDEO GUIDE ===== */
+        .video-guide {
+            margin: 0 0 24px 0;
+            padding: 14px;
+            background: rgba(13, 13, 20, 0.6);
+            border-radius: 14px;
+            border: 1px solid rgba(168, 85, 247, 0.15);
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+        .video-guide h2 {
+            color: #a855f7;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: 0.3px;
+            text-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+        }
+        .video-guide .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 */
+            height: 0;
+            overflow: hidden;
+            border-radius: 10px;
+            border: 1px solid #2a2a3a;
+            background: #000;
+        }
+        .video-guide .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
         .input-group {
             display: flex;
             gap: 12px;
@@ -362,6 +399,7 @@ HTML = """
             .input-group { flex-direction: column; }
             .input-group button { width: 100%; }
             .title { font-size: 26px; }
+            .video-guide h2 { font-size: 14px; }
             .particle-1, .particle-2, .particle-3, .particle-4 { display: none; }
             body::before { filter: blur(4px) saturate(1.5); }
         }
@@ -377,6 +415,20 @@ HTML = """
     <div class="header">
         <div class="title float-element float-delay-2">Afg <span>Bypass</span></div>
         <div class="subtitle float-element float-delay-3">Universal Link Bypass – Plato • Work.ink • Loot • Linkvertise</div>
+    </div>
+
+    <!-- ===== VIDEO GUIDE ===== -->
+    <div class="video-guide float-element float-delay-1">
+        <h2>🎬 How to Bypass a Link – Watch the Guide</h2>
+        <div class="video-wrapper">
+            <iframe
+                src="https://streamable.com/e/26o6m2"
+                allowfullscreen
+                frameborder="0"
+                allow="autoplay; fullscreen"
+                title="How to Bypass a Link – Afg Bypass Tutorial">
+            </iframe>
+        </div>
     </div>
 
     <div class="supported">
